@@ -30,15 +30,15 @@ a means to show how useful a ReHEAT idea could be. Feel free to add or change
 any code as required. Also to expose many Openstack python methods. Enjoy!
 
 # Code is based off of Ubuntu's Repository
-python-nova                   1:2013.2.3-0ubuntu1~cloud0    OpenStack Compute Python libraries
-python-novaclient             1:2.15.0-0ubuntu1~cloud0      client library for OpenStack Compute API
-python-neutron                1:2013.2.3-0ubuntu1.1~cloud0  Neutron is a virutal network service for Openstack - Python library
-python-neutronclient          1:2.3.0-0ubuntu1.1~cloud0     client - Neutron is a virtual network service for Openstack
-python-heat                   2013.2.3-0ubuntu1~cloud0      OpenStack orchestration service - Python files
-python-heatclient             0.2.4-0ubuntu1~cloud0         client library and CLI for OpenStack Heat
-python-keystone               1:2013.2.3-0ubuntu1~cloud0    OpenStack identity service - Python library
-python-keystoneclient         1:0.3.2-0ubuntu1~cloud0       Client library for OpenStack Identity API
+- python-nova                   1:2013.2.3-0ubuntu1~cloud0    OpenStack Compute Python libraries
+- python-novaclient             1:2.15.0-0ubuntu1~cloud0      client library for OpenStack Compute API
+- python-neutron                1:2013.2.3-0ubuntu1.1~cloud0  Neutron is a virutal network service for Openstack - Python library
+- python-neutronclient          1:2.3.0-0ubuntu1.1~cloud0     client - Neutron is a virtual network service for Openstack
+- python-heat                   2013.2.3-0ubuntu1~cloud0      OpenStack orchestration service - Python files
+- python-heatclient             0.2.4-0ubuntu1~cloud0         client library and CLI for OpenStack Heat
+- python-keystone               1:2013.2.3-0ubuntu1~cloud0    OpenStack identity service - Python library
+- python-keystoneclient         1:0.3.2-0ubuntu1~cloud0       Client library for OpenStack Identity API
 
 # Dependancies
-sudo pip install yaml
-sudo pip isntall mechanize
+- sudo pip install yaml
+- sudo pip isntall mechanize
