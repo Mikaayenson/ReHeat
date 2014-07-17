@@ -1,7 +1,7 @@
-ReHeat
+“Re-Heat” OpenStack Cloud Automation
 ======
 
-“Re-Heat” OpenStack Cloud Automation
+
 
 ReHeat is a standalone program that can generate stack templates.
 It also has the capability of returning nova network tologies as a template.
