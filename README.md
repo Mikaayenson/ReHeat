@@ -15,7 +15,7 @@ Alternatively, ReHeat can pull network_topology/json data as well.
 - Credentials , ports, and urls are ripped from the keystone.conf, env variables
 - To be run on a controller
 
-# Exlanation
+# Explanation
 A lot of this code can be simplified via openstack functions. Throughout
 development, several of the provided functions were not stable or did not
 provide the correct(if any) information as needed. Similarily, many functions
