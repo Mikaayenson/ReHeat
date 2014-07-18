@@ -111,6 +111,8 @@ class ReHeat:
         self.using_snapshots   = args.snapshots
         self.ip                = "localhost"
         self.cmdline           = False
+        self.reheat_error      = False
+        self.reheat_errmsg     = ""
 
     def run(self):
         """ run the ReHeat class """
@@ -164,7 +166,6 @@ class ReHeat:
             self.region_name       = env['OS_REGION_NAME']
             self.cmdline           = True
         except Exception as e:
-            print str(e)
             try:
                 # running via horizon
                 # get creds from conf file
@@ -176,7 +177,7 @@ class ReHeat:
                 self.auth_url = config.get(self.userid, 'OS_AUTH_URL')
                 self.region_name = config.get(self.userid, 'OS_REGION_NAME')
                 self.cmdline = False
-            except Exception:
+            except Exception as e:
                 self.reheat_error = True
                 self.reheat_errmsg = "\t! ERROR: Could not obtain authorized reheat credentials"
                 print self.reheat_errmsg
