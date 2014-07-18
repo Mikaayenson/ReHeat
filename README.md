@@ -42,3 +42,5 @@ any code as required. Also to expose many Openstack python methods. Enjoy!
 # Dependancies
 - sudo pip install yaml
 - sudo pip isntall mechanize
+
+Don't forget to check out the wiki
