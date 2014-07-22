@@ -1,4 +1,5 @@
 import argparse
+import base64
 import ConfigParser
 import datetime
 import json
@@ -152,7 +153,7 @@ class ReHeat:
 
         try:
             self.ip = self.auth_url.split(":")[1].strip("//")
-        except Exception as e:
+        except Exception:
             self.ip = socket.gethostbyname(socket.gethostname())
             print "\t! Error obtaining ip address from cred file. Using %s" % (self.ip)
 
@@ -165,7 +166,7 @@ class ReHeat:
             self.auth_url          = env['OS_AUTH_URL']
             self.region_name       = env['OS_REGION_NAME']
             self.cmdline           = True
-        except Exception as e:
+        except Exception:
             try:
                 # running via horizon
                 # get creds from conf file
@@ -177,11 +178,10 @@ class ReHeat:
                 self.auth_url = config.get(self.userid, 'OS_AUTH_URL')
                 self.region_name = config.get(self.userid, 'OS_REGION_NAME')
                 self.cmdline = False
-            except Exception as e:
+            except Exception:
                 self.reheat_error = True
                 self.reheat_errmsg = "\t! ERROR: Could not obtain authorized reheat credentials"
                 print self.reheat_errmsg
-
 
     def gen_tenant_id(self):
         """ obtain tenant name based off of credentials """
@@ -283,7 +283,7 @@ class ReHeat:
         print "\t* Generating combined nova and neutron data"
         self.init_compute_clients()
         self.compute_data["heat_template_version"] = "2013-05-23"
-        self.compute_data["description"] = "Generated Template %s" % str(datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p"))
+        self.compute_data["description"] = "Generated Template %s on Project %s" % (str(datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")), str(self.tenant_name))
         self.compute_data["parameters"] = {}
         self.compute_data["resources"] = {}
         self.gen_parameters()
@@ -414,7 +414,7 @@ class ReHeat:
         all_routers = self.neutronclient.list_routers()["routers"]
         self.all_ports = self.neutronclient.list_ports()["ports"]
 
-        self.tenant_routers = filter(lambda router: router['tenant_id']== self.tenant_id , all_routers)
+        self.tenant_routers = filter(lambda router: router['tenant_id'] == self.tenant_id , all_routers)
 
         for idx, router in enumerate(self.tenant_routers):
             
@@ -572,7 +572,7 @@ class ReHeat:
             for interface in internal_interfaces:
                 # add the router interface
                 # print interface
-                for idxs,  fixedip in enumerate(interface["fixed_ips"]):
+                for idxs, fixedip in enumerate(interface["fixed_ips"]):
                     private_subnet = "private_%s" % self.neutronclient.show_subnet(fixedip["subnet_id"])["subnet"]["name"]
                     data = {"type": "OS::Neutron::RouterInterface",
                             "properties": {
@@ -630,7 +630,7 @@ class ReHeat:
             for idx, port in enumerate(ports):
                 networks_.append({
                     "port": {
-                        "get_resource":"%s_port%s" % (server.name, idx)}
+                        "get_resource": "%s_port%s" % (server.name, idx)}
                         })
 
             # add server definition
@@ -647,12 +647,17 @@ class ReHeat:
             # the following line should be proper syntax according to 
             # OpenStack's documentation. However Heat did not seem to like
             # it. So, we are not using the get_file param.
+            # Creating stack from command line works, but does not seem to work
+            # in horizon
             # see: http://docs.openstack.org/developer/heat/template_guide/hot_spec.html
             # data["properties"]["user_data"] = {"get_file": user_data}
 
-            user_data = self.gen_userdata(server.id)
+            case, user_data = self.gen_userdata(server.id)
             if user_data is not None:
+                if "case3" in case:
+                    data["properties"]["user_data_format"] = "RAW"
                 data["properties"]["user_data"] = user_data
+
             self.compute_data["resources"][server.name] = data
 
             # add server port information
@@ -671,11 +676,22 @@ class ReHeat:
         cursor = db.cursor()
         cursor.execute("SELECT user_data from instances where uuid='%s'" % (uuid,))
         try:
-            path = "/tmp/%s_userdata.sh" % uuid
+            
             user_data = cursor.fetchone()[0]
-            with open(path, 'w') as f:
-                f.write(user_data.decode('base64'))
-            return path
+            searching_for = 'filename="cfn-userdata"'
+            decoded = base64.decodestring(user_data)
+            if searching_for in decoded:
+                decoded = decoded.split(searching_for)[1]
+                cloud_userdata = decoded[:decoded.find("--==")].strip()
+                if len(cloud_userdata) == 0:
+                    # with base cloud init data only, no user_data
+
+                    return ("case1", None)
+                # with user_data in cloud init
+                return ("case2", cloud_userdata)
+
+            # with user_data only
+            return ("case3", base64.decodestring(user_data))
         except Exception as e:
             print e
             return None
@@ -715,7 +731,7 @@ class ReHeat:
                     "properties": port_properties_}
             self.compute_data["resources"]["%s_port%s" % (server.name, port_idx)] = data
             if len(ports) >= 1:
-                port_idx = str(1+idx)
+                port_idx = str(1 + idx)
 
     def gen_floating_ip_resources(self, server):
         """ Generate all of the FloatingIP instance information """
@@ -728,8 +744,7 @@ class ReHeat:
 
 
     def gen_jsonview_data(self):
-        """ Generate network topology json dump 
-        
+        """ Generate network topology json dump         
             Let's try using an automated service like mechanize and access route
             This could be useful if automating stack builds in a different manor
             Alternatively, we could have also tapped into the neutron api to 
@@ -811,8 +826,7 @@ def main():
                          all], (default: all)', required=True)
     parser.add_argument('--snapshots', default=False, action='store_true',
                          help='If set, create snapshots')
-    parser.add_argument('--webuser', default=None, dest="webuser", help='If set, create snapshots')
-    
+    parser.add_argument('--webuser', default=None, dest="webuser", help='If set, create snapshots')    
     args = parser.parse_args()
     try:
         gt = ReHeat(args)
@@ -823,5 +837,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
- 
+    sys.exit(main()) 
