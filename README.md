@@ -43,4 +43,4 @@ any code as required. Also to expose many Openstack python methods. Enjoy!
 - sudo pip install yaml
 - sudo pip isntall mechanize
 
-Don't forget to check out the wiki
+Don't forget to check out the wiki [https://github.com/Mikaayenson/ReHeat/wiki/Installing-Re-Heat]
