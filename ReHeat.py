@@ -90,7 +90,7 @@ class ReHeat:
         self.userid            = args.webuser
         self.username          = None
         self.password          = None
-        self.tenant_name       = None
+        self.tenant_name       = args.webtenant
         self.auth_url          = None
         self.region_name       = None
         self.db_name           = "nova"
@@ -123,7 +123,8 @@ class ReHeat:
         print "\t* Running ReHeat."
 
         self.set_creds() 
-        self.gen_ip() # used in template description
+        if self.tenant_id is None:
+            self.gen_ip() # used in template description
         self.gen_tenant_id()
         if self.reheat_error:
             return self.reheat_errmsg
@@ -169,12 +170,11 @@ class ReHeat:
         except Exception:
             try:
                 # running via horizon
-                # get creds from conf file
+                
                 config = ConfigParser.ConfigParser()
                 config.readfp(open(r'/home/core/deploy/credentials/reheat_credentials'))
                 self.username = config.get(self.userid, 'OS_USERNAME')
                 self.password = config.get(self.userid, 'OS_PASSWORD')
-                self.tenant_name = config.get(self.userid, 'OS_TENANT_NAME')
                 self.auth_url = config.get(self.userid, 'OS_AUTH_URL')
                 self.region_name = config.get(self.userid, 'OS_REGION_NAME')
                 self.cmdline = False
@@ -653,7 +653,7 @@ class ReHeat:
 
             try:
                 case, user_data = self.gen_userdata(server.id)
-            except: 
+            except:
                 user_data = None
             if user_data is not None:
                 if "case3" in case:
@@ -828,7 +828,8 @@ def main():
                          all], (default: all)', required=True)
     parser.add_argument('--snapshots', default=False, action='store_true',
                          help='If set, create snapshots')
-    parser.add_argument('--webuser', default=None, dest="webuser", help='If set, create snapshots')    
+    parser.add_argument('--webuser', default=None, dest="webuser", help='If set, use web user')
+    parser.add_argument('--webtenant', default=None, dest="webtenant", help='If set, use web tenant')       
     args = parser.parse_args()
     try:
         gt = ReHeat(args)
