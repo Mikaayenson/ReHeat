@@ -44,4 +44,4 @@ any code as required. Also to expose many Openstack python methods. Enjoy!
 - sudo pip isntall mechanize
 
 Don't forget to check out the wiki [https://github.com/Mikaayenson/ReHeat/wiki/Installing-Re-Heat]
-Read the Johns Hopkins APL white paper [https://docs.google.com/file/d/0BzTq-ZB9F-b9b0ZXdy1PT2t3dk0/edit]
+Read the Johns Hopkins APL white paper [https://docs.google.com/file/d/0BzTq-ZB9F-b9b0ZXdy1PT2t3dk0]
