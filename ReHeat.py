@@ -123,8 +123,7 @@ class ReHeat:
         print "\t* Running ReHeat."
 
         self.set_creds() 
-        if self.tenant_id is None:
-            self.gen_ip() # used in template description
+        self.gen_ip() # used in template description
         self.gen_tenant_id()
         if self.reheat_error:
             return self.reheat_errmsg
@@ -148,15 +147,6 @@ class ReHeat:
             return self.gen_jsonview_template()
         else:
             raise Exception("User provided an improper template type.")
-
-    def gen_ip(self):
-        """ Generate the ip address """
-
-        try:
-            self.ip = self.auth_url.split(":")[1].strip("//")
-        except Exception:
-            self.ip = socket.gethostbyname(socket.gethostname())
-            print "\t! Error obtaining ip address from cred file. Using %s" % (self.ip)
 
     def set_creds(self):
         try:
@@ -182,6 +172,15 @@ class ReHeat:
                 self.reheat_error = True
                 self.reheat_errmsg = "\t! ERROR: Could not obtain authorized reheat credentials"
                 print self.reheat_errmsg
+
+    def gen_ip(self):
+        """ Generate the ip address """
+
+        try:
+            self.ip = self.auth_url.split(":")[1].strip("//")
+        except Exception:
+            self.ip = socket.gethostbyname(socket.gethostname())
+            print "\t! Error obtaining ip address from cred file. Using %s" % (self.ip)
 
     def gen_tenant_id(self):
         """ obtain tenant name based off of credentials """
@@ -743,7 +742,6 @@ class ReHeat:
         
         # TODO
         # Extra Features: Any other features could be added here...
-
 
     def gen_jsonview_data(self):
         """ Generate network topology json dump         
