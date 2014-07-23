@@ -343,10 +343,9 @@ class ReHeat:
         server_images = set([(x.id, x.name, x.image["id"]) for x in servers])
 
         # ask user if they want snapshots of information
-        #response = raw_input("\t? Would you like to snapshot current instances? [y/n] ")
         self.set_of_images = []
 
-        #if response is "y" or response is "Y":
+        #if using snapshots:
         if self.using_snapshots:
             # as per https://answers.launchpad.net/nova/+question/188899
             print "\t* You have opted to generate snapshots"
@@ -357,7 +356,7 @@ class ReHeat:
                     snapshot_id = self.novaclient.servers.create_image(server[0], "%s_snapshot" % server[1])
                     data = (server[0], snapshot_id)
                     self.snapshot_ids.append(data)
-                except Exception:
+                except Exception as e:
                     print "\t! Could not snapshot %s. Using default image." % server[1]
                     snapshot_id = server[2]
 
@@ -652,7 +651,10 @@ class ReHeat:
             # see: http://docs.openstack.org/developer/heat/template_guide/hot_spec.html
             # data["properties"]["user_data"] = {"get_file": user_data}
 
-            case, user_data = self.gen_userdata(server.id)
+            try:
+                case, user_data = self.gen_userdata(server.id)
+            except: 
+                user_data = None
             if user_data is not None:
                 if "case3" in case:
                     data["properties"]["user_data_format"] = "RAW"
