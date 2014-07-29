@@ -10,6 +10,7 @@ import os
 import requests
 import socket
 import sys
+import time
 import traceback
 import yaml
 from contextlib import contextmanager
@@ -355,6 +356,7 @@ class ReHeat:
                     snapshot_id = self.novaclient.servers.create_image(server[0], "%s_snapshot" % server[1])
                     data = (server[0], snapshot_id)
                     self.snapshot_ids.append(data)
+                    time.sleep(5)
                 except Exception as e:
                     print "\t! Could not snapshot %s. Using default image." % server[1]
                     snapshot_id = server[2]
@@ -567,10 +569,10 @@ class ReHeat:
             # internal port information needed
             internal_interfaces = filter(lambda port: port["device_owner"] == "network:router_interface", router_ports)
 
-            for interface in internal_interfaces:
+            for idxs, interface in enumerate(internal_interfaces):
                 # add the router interface
                 # print interface
-                for idxs, fixedip in enumerate(interface["fixed_ips"]):
+                for fixedip in interface["fixed_ips"]:
                     private_subnet = "private_%s" % self.neutronclient.show_subnet(fixedip["subnet_id"])["subnet"]["name"]
                     data = {"type": "OS::Neutron::RouterInterface",
                             "properties": {
@@ -771,12 +773,12 @@ class ReHeat:
             with open(self.heat_filename, 'w') as f:
                 f.write(yaml.safe_dump(self.heat_template))
 
-        try:
-            self.heatclient.stacks.validate(template=yaml.safe_dump(self.heat_template))
-        except Exception as e:
-            print "Unfortunately your file is malformed. Received error: (%s)" % str(e)
-            print "Exiting ..."
-            sys.exit(1)
+            try:
+                self.heatclient.stacks.validate(template=yaml.safe_dump(self.heat_template))
+            except Exception as e:
+                print "Unfortunately your file is malformed. Received error: (%s)" % str(e)
+                print "Exiting ..."
+                sys.exit(1)
 
         return self.heat_template
 
@@ -788,12 +790,12 @@ class ReHeat:
             with open(self.compute_filename, 'w') as f:
                 f.write(yaml.safe_dump(self.compute_template))
 
-        try:
-            self.heatclient.stacks.validate(template=yaml.safe_dump(self.compute_template))
-        except Exception as e:
-            print "Unfortunately your file is malformed. Received error: (%s)" % str(e)
-            print "Exiting ..."
-            sys.exit(1)
+            try:
+                self.heatclient.stacks.validate(template=yaml.safe_dump(self.compute_template))
+            except Exception as e:
+                print "Unfortunately your file is malformed. Received error: (%s)" % str(e)
+                print "Exiting ..."
+                sys.exit(1)
 
         return self.compute_template
 
