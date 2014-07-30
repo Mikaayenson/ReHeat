@@ -115,6 +115,7 @@ class ReHeat:
         self.cmdline           = False
         self.reheat_error      = False
         self.reheat_errmsg     = ""
+        self.staticips        = args.staticips
 
     def run(self):
         """ run the ReHeat class """
@@ -356,7 +357,7 @@ class ReHeat:
                     snapshot_id = self.novaclient.servers.create_image(server[0], "%s_snapshot" % server[1])
                     data = (server[0], snapshot_id)
                     self.snapshot_ids.append(data)
-                    time.sleep(5)
+                    time.sleep(1)
                 except Exception as e:
                     print "\t! Could not snapshot %s. Using default image." % server[1]
                     snapshot_id = server[2]
@@ -509,8 +510,15 @@ class ReHeat:
                     }
 
                 start_ = {"get_param": "private_%s_pool_start" % network["name"]}
+
+                if self.staticips:
+                    enable_dhcp = "false"
+                else:
+                    enable_dhcp = "true"
+
                 data2 = {"type": "OS::Neutron::Subnet",
                          "properties": {
+                            "enable_dhcp: %s" % enable_dhcp,
                             "network_id": {"get_resource": "private_%s" % network["name"]},
                             "cidr": {"get_param": "private_%s_cidr" % network["name"]},
                             "gateway_ip": {"get_param": "private_%s_gateway" % network["name"]},
@@ -576,7 +584,7 @@ class ReHeat:
                     private_subnet = "private_%s" % self.neutronclient.show_subnet(fixedip["subnet_id"])["subnet"]["name"]
                     data = {"type": "OS::Neutron::RouterInterface",
                             "properties": {
-                                "router_id": {"get_resource": "router%s" %  str(idx)},
+                                "router_id": {"get_resource": "router%s" % str(idx)},
                                 "subnet_id": {"get_resource": private_subnet }
                             }}
                     self.compute_data["resources"]["router_interface%s_%s" % (str(idx), str(idxs))] = data
@@ -730,6 +738,17 @@ class ReHeat:
                     ]
                 }
 
+
+            if self.staticips:
+                fixed_ips = []
+                for address in server.addresses:
+                    fixed_ips.append({"ip_address": server.addresses[address][0]['addr']})
+
+                port_properties_ = {
+                    "network_id": {"get_resource": net},
+                    "fixed_ips": fixed_ips
+                    }
+
             data = {"type": "OS::Neutron::Port",
                     "properties": port_properties_}
             self.compute_data["resources"]["%s_port%s" % (server.name, port_idx)] = data
@@ -828,6 +847,8 @@ def main():
                          all], (default: all)', required=True)
     parser.add_argument('--snapshots', default=False, action='store_true',
                          help='If set, create snapshots')
+    parser.add_argument('--staticips', default=False, action='store_true',
+                         help='If set, set static ips')
     parser.add_argument('--webuser', default=None, dest="webuser", help='If set, use web user')
     parser.add_argument('--webtenant', default=None, dest="webtenant", help='If set, use web tenant')       
     args = parser.parse_args()
