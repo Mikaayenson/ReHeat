@@ -37,7 +37,7 @@ A lot of this code can be simplified via openstack functions. Throughout
 development, several of the provided functions were not stable or did not
 provide the correct(if any) information as needed. Similarily, many functions
 were undocumented making this task difficult to complete, and use the available
-functions as their purpose intended. Much of the code exists as a work 
+functions as their purpose intended. Much of the code exists as a work
 around proof of concept. As many users wish to standup a cluster, it only
 seems logical to allow a user to create a network via horizon and download the
 network as a Heat Orchestration Template(HOT). Hopefully this code will become
@@ -373,7 +373,7 @@ class ReHeat:
                     image_idx = str(1+idx)
         else:
             print "\t* You have opted not to generate snapshots"
-            images = self.novaclient.images.list()    
+            images = self.novaclient.images.list()
 
             for image in images:
                 for server in server_images:
@@ -511,14 +511,8 @@ class ReHeat:
 
                 start_ = {"get_param": "private_%s_pool_start" % network["name"]}
 
-                if self.staticips:
-                    enable_dhcp = "false"
-                else:
-                    enable_dhcp = "true"
-
                 data2 = {"type": "OS::Neutron::Subnet",
                          "properties": {
-                            "enable_dhcp: %s" % enable_dhcp,
                             "network_id": {"get_resource": "private_%s" % network["name"]},
                             "cidr": {"get_param": "private_%s_cidr" % network["name"]},
                             "gateway_ip": {"get_param": "private_%s_gateway" % network["name"]},
@@ -545,7 +539,7 @@ class ReHeat:
                     router_ports.append(port)
             
             # add the router definition
-            if "2013" in year:            
+            if "2013" in year:
                 # Havana Format
 
                 data = {"type": "OS::Neutron::Router"}
@@ -602,7 +596,7 @@ class ReHeat:
 
         self.set_of_images = set(self.set_of_images)
 
-        for server in servers: 
+        for server in servers:
             if self.using_snapshots:
                 # get template image id
                 # images = [(idx, x) for idx, x in enumerate(self.set_of_images) if x == self.snapshot_ids[idx][0]]
@@ -652,7 +646,7 @@ class ReHeat:
                     }}
 
             # add user_data
-            # the following line should be proper syntax according to 
+            # the following line should be proper syntax according to
             # OpenStack's documentation. However Heat did not seem to like
             # it. So, we are not using the get_file param.
             # Creating stack from command line works, but does not seem to work
@@ -759,7 +753,7 @@ class ReHeat:
         """ Generate all of the FloatingIP instance information """
 
         floating_resources = self.neutronclient.list_floatingips()["floatingips"]
-        self.floating_ips = filter(lambda router: router['tenant_id']== self.tenant_id and router["port_id"] is not None, floating_resources)
+        #self.floating_ips = filter(lambda router: router['tenant_id']== self.tenant_id and router["port_id"] is not None, floating_resources)
         
         # TODO
         # Extra Features: Any other features could be added here...
