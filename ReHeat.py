@@ -536,36 +536,46 @@ class ReHeat:
             router_ports = []
             for port in self.all_ports:
                 if router["id"] == port["device_id"]:
-                    router_ports.append(port)
-            
+                    router_ports.append(port)                
+
             # add the router definition
             if "2013" in year:
                 # Havana Format
 
-                data = {"type": "OS::Neutron::Router"}
+                data = {"type": "OS::Neutron::Router","type": "OS::Neutron::Router"}
                 self.compute_data["resources"]["router%s" % str(idx)] = data
 
-                name = {"get_resource": "router%s" % str(idx)}
-                netid = {"get_param": "public_net_%s" % str(idx)}
+                #  routers without external gateway
+                if router["external_gateway_info"] is not None:
 
-                # add the router gateway
-                data = {"type": "OS::Neutron::RouterGateway",
-                        "properties": {
-                            "router_id": name,
-                            "network_id": netid
-                        }}
-                self.compute_data["resources"]["router_gateway%s" % str(idx)] = data
+                    name = {"get_resource": "router%s" % str(idx)}
+                    netid = {"get_param": "public_net_%s" % str(idx)}
+
+                    # add the router gateway
+                    data = {"type": "OS::Neutron::RouterGateway",
+                            "properties": {
+                                "router_id": name,
+                                "network_id": netid
+                            }}
+
+                    self.compute_data["resources"]["router_gateway%s" % str(idx)] = data
 
             else:
                 # Icehouse Format
-                data = {"type": "OS::Neutron::Router",
-                        "properties": {
-                            "external_gateway_info": {
-                                "network": {
-                                    "get_param": "public_net_%s" % str(idx)
+
+                #  routers without external gateway
+                if router["external_gateway_info"] is not None:
+
+                    data = {"type": "OS::Neutron::Router",
+                            "properties": {
+                                "external_gateway_info": {
+                                    "network": {
+                                        "get_param": "public_net_%s" % str(idx)
+                                    }
                                 }
-                            }
-                        }}
+                            }}
+                else:
+                    data = {"type": "OS::Neutron::Router"}
                 self.compute_data["resources"]["router%s" % str(idx)] = data
 
             # internal port information needed
@@ -573,15 +583,30 @@ class ReHeat:
 
             for idxs, interface in enumerate(internal_interfaces):
                 # add the router interface
-                # print interface
+
                 for fixedip in interface["fixed_ips"]:
-                    private_subnet = "private_%s" % self.neutronclient.show_subnet(fixedip["subnet_id"])["subnet"]["name"]
+                    #private_subnet = "private_%s" % self.neutronclient.show_subnet(fixedip["subnet_id"])["subnet"]["name"]
+
+                    #  create router interface
                     data = {"type": "OS::Neutron::RouterInterface",
                             "properties": {
                                 "router_id": {"get_resource": "router%s" % str(idx)},
-                                "subnet_id": {"get_resource": private_subnet }
+                                "port_id": {"get_resource": "port_%s_%s" % (str(idx), str(idxs)) }
                             }}
                     self.compute_data["resources"]["router_interface%s_%s" % (str(idx), str(idxs))] = data
+
+                    #  create router port
+                    private_network = self.neutronclient.show_subnet(fixedip["subnet_id"])["subnet"]["network_id"]
+                    net_name = "private_%s" % str(self.neutronclient.show_network(private_network)["network"]["name"])
+
+
+                    fixed_ips = [{"ip_address": fixedip["ip_address"]}]
+                    data = {"type": "OS::Neutron::Port",
+                            "properties": {
+                                "fixed_ips": fixed_ips,
+                                "network_id": {"get_resource": net_name}
+                            }}
+                    self.compute_data["resources"]["port_%s_%s" % (str(idx), str(idxs))] = data
 
     def gen_server_resources(self):
         """ Generate all the instance resources """
