@@ -443,31 +443,31 @@ class ReHeat:
                 data = {"type": "string",
                         "description": "Name of private network to be created",
                         "default": network["name"]}
-                self.compute_data["parameters"]["private_%s_name" % network["name"]] = data
+                self.compute_data["parameters"]["private_%s_%s_name" % (network["name"], subnet_info["name"])] = data
 
                 # private cidr
                 data = {"type": "string",
                         "description": "Private network address (CIDR notation)",
                         "default": subnet_info["cidr"]}
-                self.compute_data["parameters"]["private_%s_cidr" % network["name"]] = data
+                self.compute_data["parameters"]["private_%s_%s_cidr" % (network["name"], subnet_info["name"])] = data
 
                 # private gateway
                 data = {"type": "string",
                         "description": "Private network gateway address",
                         "default": subnet_info["gateway_ip"]}
-                self.compute_data["parameters"]["private_%s_gateway" % network["name"]] = data
+                self.compute_data["parameters"]["private_%s_%s_gateway" % (network["name"], subnet_info["name"])] = data
 
                 # private pool start
                 data = {"type": "string",
                         "description": "Start of private network IP address allocation pool",
                         "default": subnet_info["allocation_pools"][0]["start"]}
-                self.compute_data["parameters"]["private_%s_pool_start" % network["name"]] = data
+                self.compute_data["parameters"]["private_%s_%s_pool_start" % (network["name"], subnet_info["name"])] = data
 
                 # private pool end
                 data = {"type": "string",
                         "description": "End of private network IP address allocation pool",
                         "default": subnet_info["allocation_pools"][0]["end"]}
-                self.compute_data["parameters"]["private_%s_pool_end" % network["name"]] = data
+                self.compute_data["parameters"]["private_%s_%s_pool_end" % (network["name"], subnet_info["name"])] = data
 
     def gen_resources(self):
         """ Generate all the resources """
@@ -505,19 +505,19 @@ class ReHeat:
                 data = {"type": "OS::Neutron::Net",
                         "properties":
                             {"name":
-                                {"get_param": "private_%s_name" % network["name"]}
+                                {"get_param": "private_%s_%s_name" % (network["name"], subnet_info["name"])}
                         }
                     }
 
-                start_ = {"get_param": "private_%s_pool_start" % network["name"]}
+                start_ = {"get_param": "private_%s_%s_pool_start" % (network["name"], subnet_info["name"])}
 
                 data2 = {"type": "OS::Neutron::Subnet",
                          "properties": {
                             "network_id": {"get_resource": "private_%s" % network["name"]},
-                            "cidr": {"get_param": "private_%s_cidr" % network["name"]},
-                            "gateway_ip": {"get_param": "private_%s_gateway" % network["name"]},
+                            "cidr": {"get_param": "private_%s_%s_cidr" % (network["name"], subnet_info["name"])},
+                            "gateway_ip": {"get_param": "private_%s_%s_gateway" % (network["name"], subnet_info["name"])},
                             "allocation_pools": [
-                                {"start": start_, "end": {"get_param": "private_%s_pool_end" % network["name"]}}
+                                {"start": start_, "end": {"get_param": "private_%s_%s_pool_end" % (network["name"], subnet_info["name"])}}
                             ]
                         }
                     }
