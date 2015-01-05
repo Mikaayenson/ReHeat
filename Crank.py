@@ -1,4 +1,5 @@
 import argparse
+import uuid
 import keystoneclient.v2_0.client as ksclient
 import os
 import sys
@@ -10,7 +11,6 @@ from novaclient import client as nClient
 from random import shuffle
 
 """
-
 Crank is a command line tool that allows a user to create (image, flavor) pairs.
 These pairs are then added to a network pair ((image, flavor), network)
 Finally pairs are then added to a instance count pair.
@@ -35,7 +35,6 @@ python-keystoneclient         1:0.3.2-0ubuntu1~cloud0       Client library for O
 
 # Dependancies
 sudo pip install yaml
-sudo pip isntall mechanize
 """
 
 __author__ = "Mika Ayenson"
@@ -78,12 +77,13 @@ class Crank:
         tenant = self.gen_clients()
 
         print "\t* Running Crank on project: %s\n" % str(tenant)
-        
+
         if "create" in self.crank_type:
             # crank until user defined pairs
-            while self.new_pair:
+            while self.new_pair is not False:
                 self.gen_image_flavor_pair()
                 self.gen_network_instance_pair()
+                self.gen_availability_zone_pair()
                 self.gen_instance_count_pair()
             self.gen_instances()
             self.go(self.all_instances)
@@ -93,11 +93,13 @@ class Crank:
 
                 # return_list and all_instances
                 self.post_instances = [x for x in self.master_list if x["name"] in self.return_list]
-                
                 self.return_list = self.manager.list()
 
                 print "\n\t* Re-Processing %s instances" % str(len(self.post_instances))
                 self.go(self.post_instances)
+
+            # clean up the ones that are left errored
+            self.finalize()
 
         elif "delete-all" in self.crank_type:
             self.remove_all_clients()
@@ -133,7 +135,7 @@ class Crank:
         print "\t* Connecting to keystone"
         self.keystoneclient = ksclient.Client(**kcreds)
         tokenlen = len(self.keystoneclient.auth_token)
-        
+
         print "\t* AuthToken: " + self.keystoneclient.auth_token[0:20] + "..." + \
               self.keystoneclient.auth_token[tokenlen-20:tokenlen]
 
@@ -154,7 +156,7 @@ class Crank:
         self.image_flavor = None
 
         print "\n\t* Lets generate (image, flavor) pair"
-        
+
         images = self.novaclient.images.list(detailed=False)
         print "\t? What base image would you like to use? - expecting (int)"
         for idx, image in enumerate(images):
@@ -186,31 +188,68 @@ class Crank:
             sys.exit(1)
 
         self.image_flavor = (images[selected_image], flavors[selected_flavor])
-                
+
     def gen_network_instance_pair(self):
         """ """
-
+        netList = []
+        newNet = True
         print "\n\t* Lets generate (network, (image, flavor)) pair"
         networks = self.neutronclient.list_networks()['networks']
-        networks = [x for x in networks if x["name"] != "public"]
-        print "\t? What network would you like to use? - expecting (int)"
-        for idx, network in enumerate(networks):
-            print "\t [%s] - %s" % (str(idx), str(network["name"]))
-        
-        # get the network the user wants
-        selected_network = raw_input("\t>> ")
-        try:
-            selected_network = int(selected_network)
-            if selected_network > len(networks) - 1:
-                raise LookupError
-        except:
-            print "\t! You must select an network in range 0 - %s" % str(len(networks) - 1)
-            sys.exit(1)
+        networks = [x for x in networks if x["name"] != "public" and x['tenant_id'] == self.keystoneclient.tenant_id]
 
-        if "delete" in self.crank_type:
-            return networks[selected_network]["name"]
+        while newNet is True:
+            print "\t? What network would you like to use? - expecting (int)"
+            for idx, network in enumerate(networks):
+                print "\t [%s] - %s" % (str(idx), str(network["name"]))
 
-        self.network_image_flavor = (networks[selected_network]["name"], self.image_flavor)
+            # get the network the user wants
+            selected_network = raw_input("\t>> ")
+            try:
+                selected_network = int(selected_network)
+                if selected_network > len(networks) - 1:
+                    raise LookupError
+            except:
+                print "\t! You must select a network in range 0 - %s" % str(len(networks) - 1)
+                sys.exit(1)
+
+            if "delete" in self.crank_type:
+                return networks[selected_network]["name"]
+
+            netList.append(networks[selected_network]["name"])
+            self.network_image_flavor = (netList, self.image_flavor)
+
+            print "\n\t? Would you like to add a new net to this pair?"
+            newNetOption = str(raw_input("\t>> [y/n]: "))
+            if "y" not in newNetOption and "Y" not in newNetOption:
+                newNet = False
+
+    def gen_availability_zone_pair(self):
+        print "\n\tWould you like to specify a specific node?"
+        azOption = str(raw_input("\t>> [y/n]: "))
+        if "y" not in azOption and "Y" not in azOption:
+            az = None
+        else:
+            zones = self.novaclient.availability_zones.list()
+            for zone in zones:
+                if zone.zoneName == "nova":
+                    novaZone = zone
+                    break
+            if novaZone:
+                for idx, host in enumerate(novaZone.hosts.keys(), start=1):
+                    print "\t [%s] - %s" % (str(idx), str(host))
+                az = raw_input("\t>> ")
+                try:
+                    az = int(az)
+                    if az > len(novaZone.hosts):
+                        raise LookupError
+                    if az < 1:
+                        raise LookupError
+                except:
+                    print "\t! You must select a node in range 1 - %s" % str(len(novaZone.hosts))
+                    sys.exit(1)
+
+                az = "nova:" + str(novaZone.hosts.keys()[az-1])
+        self.az = az
 
     def gen_instance_count_pair(self):
         """ """
@@ -226,7 +265,8 @@ class Crank:
         self.final_pair = {"instance_count": instance_count,
                            "network": self.network_image_flavor[0],
                            "image": self.network_image_flavor[1][0],
-                           "flavor": self.network_image_flavor[1][1]}
+                           "flavor": self.network_image_flavor[1][1],
+                           "availability_zone": self.az}
         self.pairs.append(self.final_pair)
 
         print "\n\t* Here are the pairs you have so far."
@@ -234,11 +274,14 @@ class Crank:
             print "\t [%s] - %s" % (str(idx), str(pair))
 
         print "\n\t? Would you like to enter a new pair?"
-        
         new_pair = str(raw_input("\t>> [y/n]: "))
+        while "y" not in new_pair and "n" not in new_pair:
+            print "**Try input again. Looking for 'y' or 'n'.\n"
+            print "\n\t? Would you like to enter a new pair?"
+            new_pair = str(raw_input("\t>> [y/n]: "))
         if "y" not in new_pair and "Y" not in new_pair:
             self.new_pair = False
-                
+
     def gen_instances(self):
         """ """
 
@@ -247,13 +290,13 @@ class Crank:
 
         for pair in self.pairs:
             for instance in range(pair["instance_count"]):
-                new_instance = {"name": "new_instance_%s_%s_%s_%s" % (pair["network"], 
-                                                                      pair["image"].name, 
-                                                                      pair["flavor"].name, 
-                                                                      str(instance)),
-                                "network": pair["network"],
-                                "image": pair["image"],
-                                "flavor": pair["flavor"]
+                uniqName = "%s_%s_%s" %(pair["image"].name, pair["flavor"].name, str(instance))
+                new_instance = {
+                    "name": uniqName,
+                    "network": pair["network"],
+                    "image": pair["image"],
+                    "flavor": pair["flavor"],
+                    "availability_zone": pair["availability_zone"]
                 }
                 all_instances.append(new_instance)
 
@@ -267,29 +310,35 @@ class Crank:
         """ """
         while len(instances) > 0:
             processes = []
-                        
+
             for i in range(self.max_process):
                 if len(instances) == 0:
                     break
 
                 mp = Process(target=self.create_instances, args=(instances.pop(), self.return_list,))
                 processes.append(mp)
-                
+
             [x.start() for x in processes]
             [x.join(180) for x in processes]
-    
+
     def create_instances(self, new_instance, return_list):
         """ """
-        
+        listOfNics = []
         nets = self.neutronclient.list_networks()["networks"]
-        net_id = filter(lambda net: net["name"] == new_instance["network"], nets)[0]["id"]
-        instance = self.novaclient.servers.create(new_instance["name"],
-                                       new_instance["image"],
-                                       new_instance["flavor"],
-                                       key_name="reheat_key",
-                                       nics=[{"net-id": net_id}]
-                  )
-
+        for networkAttached in new_instance["network"]:
+            net = [network for network in nets if network["name"] == networkAttached]
+            listOfNics.append({"net-id": net[0]['id']})  # replaces net-id
+        try:
+            instance = self.novaclient.servers.create(new_instance["name"],
+                                        new_instance["image"],
+                                        new_instance["flavor"],
+                                        key_name="reheat_key",
+                                        availability_zone=new_instance["availability_zone"],
+                                        nics=listOfNics
+                 )
+        except:
+            # could not process instance. We will send this to be reprocessed
+            pass
         # Poll at 5 second intervals, until the status is no longer 'BUILD'
         try:
             status = instance.status
@@ -298,8 +347,8 @@ class Crank:
             pass
         sys.stdout.write("\t* Building %s...\n" % str(new_instance["name"]))
         while status == 'BUILD':
-            time.sleep(1)
-            
+            time.sleep(5)
+
             # Retrieve the instance again so the status field updates
             try:
                 instance = self.novaclient.servers.get(instance.id)
@@ -307,7 +356,9 @@ class Crank:
             except:
                 status = "BUILD"
 
-        print "\t* status: %s is %s" % (new_instance["name"], status)
+        newname = new_instance["name"] + str(instance.id)[:8]
+        self.novaclient.servers.update(instance.id, name=newname)
+        print "\t* status: %s is %s" % (newname, status)
 
         if status != 'ACTIVE':
             try:
@@ -337,8 +388,7 @@ class Crank:
         instances = self.novaclient.servers.list()
         for idx, instance in enumerate(instances):
             print "\t* [%s] Deleting name: %s - hostId: %s " % (str(idx + 1), instance.name, instance.hostId)
-
-            
+            instance.delete()
 
     def confirmation(self):
         confirm = str(raw_input("\n\t? Are you sure you would like to proceed? [y/n] : "))
@@ -347,11 +397,21 @@ class Crank:
             sys.exit(1)
         self.new_pair = False
 
+    def finalize(self):
+        """ """
+        servers = self.novaclient.servers.list()
+        errored = [server for server in servers if server.status != 'ACTIVE']
+        for bad_server in errored:
+            try:
+                bad_server.delete()
+            except:
+                pass
+
 
 def main():
     parser = argparse.ArgumentParser(description='Crank: Generate Instances')
     parser.add_argument('-t', '--crank-type', default=None,
-                         help='Crank mass creation or deletion: type - [create, delete, delete-all], (default: None)', required=True)
+                        help='Crank mass creation or deletion: type - [create, delete, delete-all], (default: None)', required=True)
     parser.add_argument('--webuser', default=None, dest="webuser",
                         help='If set, use web user')
     parser.add_argument('--webtenant', default=None, dest="webtenant",
@@ -360,6 +420,8 @@ def main():
     try:
         c = Crank(args)
         c.run()
+    except KeyboardInterrupt as e:
+        pass
     except Exception as e:
         print e
         print traceback.format_exc()
