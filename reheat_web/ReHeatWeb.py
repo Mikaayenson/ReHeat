@@ -288,8 +288,7 @@ class ReHeatWeb:
 
         # filter all networks that match
         self.filtered_networks = [net for net in networks if (net["tenant_id"] == self.tenant_id or
-            (net["shared"] is True) and net['router:external'] is False)]
-
+            (net["shared"] is True) and net['router:external'] is False) and (net["name"] != "public")]
         # obtain subnet information
         shared_net_id = 0
         for network in self.filtered_networks:
@@ -518,7 +517,10 @@ class ReHeatWeb:
 
             # get template keys
             keys = [(idx, x) for idx, x in enumerate(self.set_of_keys) if x == server.key_name]
-            key_num = keys[0][0] if keys[0][0] > 0 else ""
+            try:
+                key_num = keys[0][0] if keys[0][0] > 0 else ""
+            except Exception:
+                key_num = ""
             key_ = "key_name%s" % key_num
 
             # get template network info

@@ -425,7 +425,7 @@ class ReHeat:
         networks = self.neutronclient.list_networks()["networks"]
         # filter all networks that match
         filtered_networks = [net for net in networks if (net["tenant_id"] == self.tenant_id or
-            (net["shared"] == True) and net['router:external'] == False)]
+            (net["shared"] is True) and net['router:external'] is False) and (net["name"] != "public")]
 
         # obtain subnet information
         shared_net_id = 0

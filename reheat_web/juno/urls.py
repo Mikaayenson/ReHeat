@@ -1,5 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
 # a copy of the License at
@@ -12,8 +10,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from django.conf.urls import patterns  # noqa
-from django.conf.urls import url  # noqa
+from django.conf.urls import patterns
+from django.conf.urls import url
 from django.views.decorators.cache import cache_page
 from openstack_dashboard.dashboards.project.stacks import views
 
@@ -34,6 +32,6 @@ urlpatterns = patterns(
         views.ResourceView.as_view(), name='resource'),
     url(r'^get_d3_data/(?P<stack_id>[^/]+)/$',
         views.JSONView.as_view(), name='d3_data'),
-    url(r'^reheat_template$', cache_page(60*30)(views.ReHeatView.as_view()),  # cache for 30 minutes
+    url(r'^reheat_template$', views.ReHeatView.as_view(),  # cache for 30 minutes
         name='reheat'),
 )

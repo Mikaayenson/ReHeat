@@ -360,7 +360,9 @@ class Crank:
         self.novaclient.servers.update(instance.id, name=newname)
         print "\t* status: %s is %s" % (newname, status)
 
-        if status != 'ACTIVE':
+        if status == 'DELETED':
+            print "\t! Deleting %s." % str(new_instance["name"])
+        elif status != 'ACTIVE':
             try:
                 instance.delete()
             except:
